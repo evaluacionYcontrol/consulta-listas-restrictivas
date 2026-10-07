@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%23215732%22/%3E%3C/svg%3E">
+<title>Consulta de contratistas en listas restrictivas</title>
+<style>
+  :root {
+    --tinta: #1C2B22;
+    --tinta-suave: #4A5A50;
+    --verde: #215732;
+    --verde-claro: #E4EFE7;
+    --fondo: #EEF2EF;
+    --papel: #FFFFFF;
+    --borde: #C9D3CC;
+    --alta: #A3201B;
+    --alta-claro: #FBE9E7;
+    --media: #8A5300;
+    --media-claro: #FDF1DC;
+    --baja: #4A5A50;
+    --baja-claro: #EDF0EE;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 20px; }
+  body {
+    margin: 0; background: var(--fondo); color: var(--tinta);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .6rem; color: var(--verde); font-weight: 700; }
+  h2 { font-size: 1.3rem; margin: 0 0 .5rem; }
+  p { margin: 0 0 1rem; }
+  .intro { color: var(--tinta-suave); max-width: 36rem; }
+  .fechas { font-size: .85rem; color: var(--tinta-suave); border-left: 4px solid var(--verde); padding-left: .75rem; margin: 1.5rem 0 2rem; }
+
+  /* Zona para subir el archivo: es el centro de la página */
+  .zona {
+    display: block; background: var(--papel); border: 3px dashed var(--verde); border-radius: 14px;
+    padding: 3rem 1.5rem; text-align: center; cursor: pointer; transition: background .15s;
+  }
+  .zona:hover, .zona.encima { background: var(--verde-claro); }
+  .zona:focus-within { outline: 4px solid #F2B705; outline-offset: 3px; }
+  .zona.desactivada { cursor: wait; border-color: var(--borde); }
+  .zona strong { display: block; font-size: 1.35rem; margin-bottom: .4rem; }
+  .zona span { color: var(--tinta-suave); }
+  .zona input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .zona .boton { color: #fff; }
+  .zona:hover .boton { background: #17402A; }
+  .boton {
+    display: inline-block; margin-top: 1.25rem; background: var(--verde); color: #fff; border: 0;
+    border-radius: 10px; padding: .75rem 1.6rem; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .boton:hover { background: #17402A; }
+  .boton:focus-visible, select:focus-visible, button:focus-visible { outline: 4px solid #F2B705; outline-offset: 2px; }
+  .boton.secundario { background: var(--papel); color: var(--verde); border: 2px solid var(--verde); }
+  .boton.secundario:hover { background: var(--verde-claro); }
+
+  .panel { background: var(--papel); border-radius: 14px; padding: 1.5rem; margin-top: 1.5rem; border: 1px solid var(--borde); }
+  .oculto { display: none !important; }
+
+  .progreso { height: 18px; background: var(--baja-claro); border-radius: 9px; overflow: hidden; margin: .75rem 0; }
+  .progreso div { height: 100%; width: 0; background: var(--verde); transition: width .2s; }
+
+  /* El veredicto: lo primero que debe verse */
+  .veredicto { border-radius: 14px; padding: 1.75rem 1.5rem; margin-top: 1.5rem; }
+  .veredicto h2 { font-size: 1.7rem; line-height: 1.25; margin-bottom: .5rem; }
+  .veredicto.limpio { background: var(--verde-claro); border: 2px solid var(--verde); }
+  .veredicto.limpio h2 { color: var(--verde); }
+  .veredicto.alerta { background: var(--alta-claro); border: 2px solid var(--alta); }
+  .veredicto.alerta h2 { color: var(--alta); }
+  .veredicto h2:focus { outline: none; }
+  .conteos:empty { display: none; }
+  .conteos { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: .75rem 0 0; padding: 0; list-style: none; font-size: .9rem; }
+
+  .columnas { font-size: .85rem; color: var(--tinta-suave); margin-top: 1rem; }
+  .enlace { background: none; border: 0; padding: 0; font: inherit; color: var(--verde); text-decoration: underline; cursor: pointer; font-weight: 600; }
+  label { display: block; font-weight: 600; margin: 1rem 0 .3rem; }
+  select { width: 100%; font: inherit; padding: .55rem; border: 2px solid var(--borde); border-radius: 8px; background: #fff; }
+
+  .tabla-contenedor { overflow-x: auto; margin-top: 1rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; min-width: 40rem; }
+  th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  th { background: var(--fondo); font-weight: 600; }
+  td small { display: block; color: var(--tinta-suave); }
+  .nivel { display: inline-block; font-weight: 700; border-radius: 6px; padding: .1rem .5rem; white-space: nowrap; }
+  .nivel-1 { background: var(--alta-claro); color: var(--alta); }
+  .nivel-2 { background: var(--media-claro); color: var(--media); }
+  .nivel-3 { background: var(--baja-claro); color: var(--baja); }
+
+  .acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+  .acciones .boton { margin-top: 0; }
+  .error { background: var(--alta-claro); border: 2px solid var(--alta); color: var(--alta); border-radius: 12px; padding: 1rem 1.25rem; margin-top: 1.5rem; }
+
+  details { margin-top: 2.5rem; font-size: .9rem; color: var(--tinta-suave); }
+  summary { cursor: pointer; font-weight: 600; color: var(--tinta); }
+  details dl { margin: .75rem 0 0; }
+  details dt { font-weight: 600; color: var(--tinta); margin-top: .6rem; }
+  details dd { margin: 0; }
+  .privacidad { font-size: .85rem; color: var(--tinta-suave); margin-top: 2rem; }
+
+  @media (max-width: 600px) {
+    html { font-size: 18px; }
+    main { padding-top: 1.5rem; }
+    h1 { font-size: 1.55rem; }
+    .zona { padding: 2rem 1rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Consulta de contratistas en listas restrictivas</h1>
+  <p class="intro">Suba el archivo de Excel con los contratistas y la página le dirá si alguno aparece en la Lista Clinton (OFAC) o en la lista del Consejo de Seguridad de la ONU.</p>
+  <p class="fechas" id="fechas">Cargando las listas…</p>
+
+  <!-- Paso único: subir el archivo -->
+  <label class="zona desactivada" id="zona" for="archivo">
+    <strong id="zona-titulo">Preparando la consulta…</strong>
+    <span id="zona-texto">Espere un momento, por favor.</span>
+    <input type="file" id="archivo" accept=".xlsx,.xls,.csv" disabled>
+  </label>
+
+  <!-- Avance de la revisión -->
+  <section class="panel oculto" id="panel-progreso" aria-live="polite">
+    <h2>Revisando contratistas…</h2>
+    <div class="progreso"><div id="barra"></div></div>
+    <p id="texto-progreso"></p>
+  </section>
+
+  <!-- Elegir columnas cuando no se reconocen solas -->
+  <section class="panel oculto" id="panel-columnas">
+    <h2>¿Dónde están el documento y el nombre?</h2>
+    <p id="texto-columnas">No se pudieron reconocer automáticamente las columnas. Elija cuál tiene el número de documento (cédula o NIT) y cuál el nombre del contratista.</p>
+    <label for="sel-documento">Columna del documento</label>
+    <select id="sel-documento"></select>
+    <label for="sel-nombre">Columna del nombre</label>
+    <select id="sel-nombre"></select>
+    <button class="boton" id="btn-revisar">Revisar con estas columnas</button>
+  </section>
+
+  <div class="error oculto" id="error" role="alert"></div>
+
+  <!-- Resultado -->
+  <section class="oculto" id="panel-resultado" aria-live="polite">
+    <div class="veredicto" id="veredicto">
+      <h2 id="veredicto-titulo"></h2>
+      <p id="veredicto-texto"></p>
+      <ul class="conteos" id="conteos"></ul>
+    </div>
+    <p class="columnas" id="columnas-usadas"></p>
+    <div class="tabla-contenedor" id="contenedor-tabla"></div>
+    <div class="acciones">
+      <button class="boton" id="btn-descargar">Descargar resultado en Excel</button>
+      <button class="boton secundario" id="btn-otro">Revisar otro archivo</button>
+    </div>
+  </section>
+
+  <details>
+    <summary>¿Cómo leer los resultados?</summary>
+    <dl>
+      <dt>Alerta alta</dt>
+      <dd>El número de documento del contratista es igual a uno de la lista. Debe revisarse de inmediato.</dd>
+      <dt>Alerta media</dt>
+      <dd>El nombre es igual a uno de la lista, aunque las palabras estén en otro orden. Hay que confirmar con el documento, el país o la fecha de nacimiento.</dd>
+      <dt>Alerta baja</dt>
+      <dd>El nombre es muy parecido a uno de la lista, por ejemplo por un error de digitación. Suele tratarse de otra persona, pero conviene revisarlo.</dd>
+    </dl>
+    <p>Una coincidencia no significa que el contratista esté sancionado: puede ser un homónimo. Cada caso debe verificarse antes de tomar decisiones.</p>
+  </details>
+
+  <p class="privacidad">El archivo se revisa dentro de este navegador. Los datos de los contratistas no se envían a ningún servidor.</p>
+</main>
+
+<script src="xlsx.full.min.js"></script>
+<script src="motor.js"></script>
+<script>
+(function () {
+  var listas = null;          // listas preparadas para la búsqueda
+  var archivoActual = null;   // { nombre, filas, encabezado }
+  var ultimoResultado = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var formatoNumero = function (n) { return n.toLocaleString("es-CO"); };
+  var MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function fechaLarga(iso) {
+    var p = String(iso || "").split("-");
+    if (p.length !== 3) return iso || "fecha desconocida";
+    return parseInt(p[2], 10) + " de " + MESES[parseInt(p[1], 10) - 1] + " de " + p[0];
+  }
+  function escapar(t) {
+    return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function mostrar(id, si) { $(id).classList.toggle("oculto", !si); }
+  function mostrarError(mensaje) {
+    $("error").textContent = mensaje; mostrar("error", true);
+    mostrar("panel-progreso", false); mostrar("zona", true);
+  }
+
+  /* 1. Cargar las listas al abrir la página */
+  fetch("datos/listas.json", { cache: "no-cache" })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (datos) {
+      listas = prepararListas(datos);
+      var m = datos.meta;
+      $("fechas").textContent = "Listas actualizadas el " + fechaLarga(m.fecha_actualizacion) +
+        ". Versión de la lista de la ONU: " + fechaLarga(m.fecha_lista_onu) + ".";
+      $("zona").classList.remove("desactivada");
+      $("archivo").disabled = false;
+      $("zona-titulo").textContent = "Arrastre aquí el archivo de Excel";
+      $("zona-texto").innerHTML = 'o <span class="boton">Buscar el archivo en el computador</span>';
+    })
+    .catch(function () {
+      $("fechas").textContent = "";
+      $("zona-titulo").textContent = "No se pudieron cargar las listas";
+      $("zona-texto").textContent = "Revise la conexión a internet y vuelva a abrir la página.";
+    });
+
+  /* 2. Recibir el archivo (arrastrando o con el botón) */
+  var zona = $("zona");
+  ["dragenter", "dragover"].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); if (listas) zona.classList.add("encima"); });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.remove("encima"); });
+  });
+  zona.addEventListener("drop", function (e) {
+    if (listas && e.dataTransfer.files.length) leerArchivo(e.dataTransfer.files[0]);
+  });
+  $("archivo").addEventListener("change", function () {
+    if (this.files.length) leerArchivo(this.files[0]);
+    this.value = "";
+  });
+
+  function leerArchivo(archivo) {
+    mostrar("error", false); mostrar("panel-resultado", false); mostrar("panel-columnas", false);
+    if (!/\.(xlsx|xls|csv)$/i.test(archivo.name)) {
+      mostrarError("El archivo «" + archivo.name + "» no es de Excel. Suba un archivo .xlsx, .xls o .csv.");
+      return;
+    }
+    mostrar("zona", false); mostrar("panel-progreso", true);
+    $("barra").style.width = "0"; $("texto-progreso").textContent = "Abriendo el archivo…";
+
+    var lector = new FileReader();
+    lector.onload = function () {
+      try {
+        var libro = XLSX.read(new Uint8Array(lector.result), { type: "array", cellDates: false });
+        prepararArchivo(archivo.name, libro);
+      } catch (e) {
+        mostrarError("No se pudo abrir el archivo. Ábralo en Excel, guárdelo como «Libro de Excel (.xlsx)» e inténtelo de nuevo.");
+      }
+    };
+    lector.onerror = function () { mostrarError("No se pudo leer el archivo. Inténtelo de nuevo."); };
+    lector.readAsArrayBuffer(archivo);
+  }
+
+  /* 3. Encontrar la hoja y las columnas de documento y nombre */
+  function prepararArchivo(nombreArchivo, libro) {
+    var elegido = null;
+    for (var i = 0; i < libro.SheetNames.length; i++) {
+      var filas = XLSX.utils.sheet_to_json(libro.Sheets[libro.SheetNames[i]], { header: 1, raw: true, defval: "" });
+      if (!filas.length) continue;
+      var deteccion = detectarColumnas(filas);
+      if (deteccion) { elegido = { filas: filas, deteccion: deteccion, hoja: libro.SheetNames[i] }; break; }
+      if (!elegido) elegido = { filas: filas, deteccion: null, hoja: libro.SheetNames[i] };
+    }
+    if (!elegido || elegido.filas.length < 2) {
+      mostrarError("El archivo está vacío o no tiene filas con datos.");
+      return;
+    }
+    var filaEnc = elegido.deteccion ? elegido.deteccion.filaEncabezado : filaEncabezadoProbable(elegido.filas);
+    var encabezado = (elegido.filas[filaEnc] || []).map(function (c, j) {
+      var t = textoCelda(c); return t || "Columna " + (j + 1);
+    });
+    archivoActual = { nombre: nombreArchivo, hoja: elegido.hoja, filas: elegido.filas, filaEncabezado: filaEnc, encabezado: encabezado };
+
+    if (elegido.deteccion) {
+      revisar(elegido.deteccion.colDocumento, elegido.deteccion.colNombre);
+    } else {
+      pedirColumnas();
+    }
+  }
+
+  function pedirColumnas(docActual, nomActual) {
+    mostrar("panel-progreso", false); mostrar("panel-resultado", false);
+    var opciones = archivoActual.encabezado.map(function (t, j) {
+      return '<option value="' + j + '">' + escapar(t) + "</option>";
+    }).join("");
+    $("sel-documento").innerHTML = opciones; $("sel-nombre").innerHTML = opciones;
+    if (docActual != null) $("sel-documento").value = docActual;
+    if (nomActual != null) $("sel-nombre").value = nomActual;
+    else if (archivoActual.encabezado.length > 1) $("sel-nombre").value = 1;
+    $("texto-columnas").textContent = docActual != null
+      ? "Elija cuál columna tiene el número de documento (cédula o NIT) y cuál el nombre del contratista."
+      : "No se pudieron reconocer automáticamente las columnas. Elija cuál tiene el número de documento (cédula o NIT) y cuál el nombre del contratista.";
+    mostrar("panel-columnas", true);
+    $("sel-documento").focus();
+  }
+  $("btn-revisar").addEventListener("click", function () {
+    var d = parseInt($("sel-documento").value, 10), n = parseInt($("sel-nombre").value, 10);
+    if (d === n) { mostrarError("La columna del documento y la del nombre deben ser diferentes."); mostrar("zona", false); return; }
+    mostrar("panel-columnas", false); mostrar("error", false);
+    revisar(d, n);
+  });
+
+  /* 4. Revisar fila por fila, en tandas, para que la página no se congele */
+  function revisar(colDoc, colNom) {
+    mostrar("panel-progreso", true);
+    var filas = archivoActual.filas, inicio = archivoActual.filaEncabezado + 1;
+    var total = filas.length - inicio, i = inicio, revisados = 0, alertas = [];
+
+    function tanda() {
+      var fin = Math.min(i + 150, filas.length);
+      for (; i < fin; i++) {
+        var fila = filas[i] || [];
+        var doc = textoCelda(fila[colDoc]), nom = textoCelda(fila[colNom]);
+        if (!doc && !nom) continue;
+        revisados++;
+        buscarContratista(listas, doc, nom).forEach(function (a) {
+          alertas.push(Object.assign({ fila: i + 1, documento: doc, nombre: nom, filaOriginal: fila }, a));
+        });
+      }
+      var avance = total ? Math.round(100 * (i - inicio) / total) : 100;
+      $("barra").style.width = avance + "%";
+      $("texto-progreso").textContent = "Revisados " + formatoNumero(revisados) + " contratistas…";
+      if (i < filas.length) setTimeout(tanda, 0);
+      else mostrarResultado(colDoc, colNom, revisados, alertas);
+    }
+    tanda();
+  }
+
+  /* 5. Mostrar el resultado */
+  function mostrarResultado(colDoc, colNom, revisados, alertas) {
+    alertas.sort(function (a, b) { return a.nivel - b.nivel || b.similitud - a.similitud || a.fila - b.fila; });
+    var porNivel = [0, 0, 0, 0];
+    alertas.forEach(function (a) { porNivel[a.nivel]++; });
+    var conAlerta = new Set(alertas.map(function (a) { return a.fila; })).size;
+    ultimoResultado = { colDoc: colDoc, colNom: colNom, revisados: revisados, alertas: alertas, conAlerta: conAlerta, porNivel: porNivel };
+
+    mostrar("panel-progreso", false);
+    if (revisados === 0) {
+      mostrarError("No se encontraron contratistas en las columnas elegidas. Revise que haya elegido las columnas correctas.");
+      pedirColumnas(colDoc, colNom);
+      return;
+    }
+
+    var v = $("veredicto");
+    if (!alertas.length) {
+      v.className = "veredicto limpio";
+      $("veredicto-titulo").textContent = "No se encontraron coincidencias";
+      $("veredicto-texto").textContent = "Se revisaron " + formatoNumero(revisados) +
+        " contratistas y ninguno aparece en la Lista Clinton (OFAC) ni en la lista de la ONU.";
+      $("conteos").innerHTML = "";
+      $("contenedor-tabla").innerHTML = "";
+    } else {
+      v.className = "veredicto alerta";
+      $("veredicto-titulo").textContent = conAlerta === 1
+        ? "Se encontró 1 contratista con posibles coincidencias"
+        : "Se encontraron " + formatoNumero(conAlerta) + " contratistas con posibles coincidencias";
+      $("veredicto-texto").textContent = "De " + formatoNumero(revisados) +
+        " contratistas revisados. Revise cada caso en la tabla: una coincidencia puede ser un homónimo.";
+      $("conteos").innerHTML =
+        "<li><strong>" + porNivel[1] + "</strong> alerta" + (porNivel[1] === 1 ? "" : "s") + " alta" + (porNivel[1] === 1 ? "" : "s") + " (documento)</li>" +
+        "<li><strong>" + porNivel[2] + "</strong> media" + (porNivel[2] === 1 ? "" : "s") + " (nombre igual)</li>" +
+        "<li><strong>" + porNivel[3] + "</strong> baja" + (porNivel[3] === 1 ? "" : "s") + " (nombre parecido)</li>";
+      $("contenedor-tabla").innerHTML = construirTabla(alertas);
+    }
+    $("columnas-usadas").innerHTML = "Se revisó la columna «" + escapar(archivoActual.encabezado[colDoc]) +
+      "» como documento y «" + escapar(archivoActual.encabezado[colNom]) + "» como nombre. " +
+      '<button class="enlace" id="btn-cambiar">Cambiar columnas</button>';
+    $("btn-cambiar").addEventListener("click", function () { pedirColumnas(colDoc, colNom); });
+    mostrar("panel-resultado", true);
+    $("veredicto-titulo").setAttribute("tabindex", "-1");
+    $("veredicto-titulo").focus();
+  }
+
+  var NOMBRES_NIVEL = ["", "Alta", "Media", "Baja"];
+  function construirTabla(alertas) {
+    var filas = alertas.map(function (a) {
+      var motivo = a.tipoCoincidencia === "Documento"
+        ? "Mismo documento" + (a.detalleDocumento ? "<small>" + escapar(a.detalleDocumento) + "</small>" : "")
+        : a.tipoCoincidencia === "Nombre exacto" ? "Mismo nombre"
+        : "Nombre parecido<small>" + String(a.similitud).replace(".", ",") + " % de similitud</small>";
+      return "<tr>" +
+        '<td><span class="nivel nivel-' + a.nivel + '">' + NOMBRES_NIVEL[a.nivel] + "</span></td>" +
+        "<td>" + escapar(a.nombre) + "<small>Doc. " + escapar(a.documento) + ", fila " + a.fila + "</small></td>" +
+        "<td>" + escapar(a.nombreEnLista) + (a.tipoNombre && a.tipoNombre !== "PRINCIPAL" ? "<small>" + escapar(a.tipoNombre.toLowerCase()) + "</small>" : "") + "</td>" +
+        "<td>" + (a.fuente === "OFAC" ? "OFAC (Lista Clinton)" : "ONU") + "<small>" + escapar(a.programa) + "</small></td>" +
+        "<td>" + motivo + "<small>" + escapar(a.tipoRegistro) + "</small></td>" +
+        "</tr>";
+    }).join("");
+    return "<table><thead><tr><th>Alerta</th><th>Contratista</th><th>Coincide con</th><th>Lista</th><th>Motivo</th></tr></thead><tbody>" + filas + "</tbody></table>";
+  }
+
+  /* 6. Descargar el resultado en Excel */
+  $("btn-descargar").addEventListener("click", function () {
+    var r = ultimoResultado, hoy = new Date();
+    var fecha = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + String(hoy.getDate()).padStart(2, "0");
+    var resumen = [
+      ["Concepto", "Valor"],
+      ["Archivo revisado", archivoActual.nombre],
+      ["Hoja", archivoActual.hoja],
+      ["Fecha de la consulta", fecha],
+      ["Contratistas revisados", r.revisados],
+      ["Contratistas con al menos una coincidencia", r.conAlerta],
+      ["Alertas altas (documento)", r.porNivel[1]],
+      ["Alertas medias (nombre igual)", r.porNivel[2]],
+      ["Alertas bajas (nombre parecido)", r.porNivel[3]],
+      ["Listas actualizadas el", listas.meta.fecha_actualizacion],
+      ["Versión de la lista ONU", listas.meta.fecha_lista_onu],
+      ["Umbral de similitud de nombres", UMBRAL_SIMILITUD]
+    ];
+    var encabezado = archivoActual.encabezado.concat(["nivel_alerta", "tipo_coincidencia", "similitud", "fuente",
+      "id_lista", "nombre_en_lista", "tipo_nombre", "tipo_registro", "programa", "documento_en_lista", "detalle_documento"]);
+    var detalle = [encabezado];
+    if (!r.alertas.length) detalle = [["Resultado"], ["No se encontraron coincidencias"]];
+    r.alertas.forEach(function (a) {
+      var original = archivoActual.encabezado.map(function (_, j) { return textoCelda(a.filaOriginal[j]); });
+      detalle.push(original.concat([a.nivel + " - " + NOMBRES_NIVEL[a.nivel].toUpperCase(), a.tipoCoincidencia, a.similitud,
+        a.fuente, a.idLista, a.nombreEnLista, a.tipoNombre, a.tipoRegistro, a.programa, a.documentoEnLista, a.detalleDocumento]));
+    });
+    var libro = XLSX.utils.book_new();
+    var hojaResumen = XLSX.utils.aoa_to_sheet(resumen);
+    hojaResumen["!cols"] = [{ wch: 45 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(libro, hojaResumen, "Resumen");
+    var hojaDetalle = XLSX.utils.aoa_to_sheet(detalle);
+    hojaDetalle["!cols"] = encabezado.map(function () { return { wch: 22 }; });
+    XLSX.utils.book_append_sheet(libro, hojaDetalle, "Coincidencias");
+    XLSX.writeFile(libro, "resultado_cruce_listas_" + fecha + ".xlsx");
+  });
+
+  $("btn-otro").addEventListener("click", function () {
+    mostrar("panel-resultado", false); mostrar("error", false); mostrar("panel-columnas", false);
+    mostrar("zona", true);
+    $("archivo").focus();
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Archivos que se descargan y generan automáticamente: no se guardan en el repositorio
+procesamiento/*.csv
+procesamiento/*.xml
+
+# NUNCA subir bases de contratistas ni resultados de cruces
+*.xlsx
+*.xls
+resultado_cruce_listas*
+
+__pycache__/
