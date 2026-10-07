@@ -1,0 +1,85 @@
+# Tarea automática:
+#   1. Cada lunes a las 6:00 a. m. (hora Colombia) descarga las listas de OFAC y ONU,
+#      las procesa con los scripts de la carpeta "procesamiento" y guarda datos/listas.json.
+#   2. Publica la página en GitHub Pages.
+# También se puede correr a mano: pestaña Actions > "Actualizar listas y publicar" > Run workflow.
+# Cuando se sube un cambio al repositorio, solo se vuelve a publicar la página.
+
+name: Actualizar listas y publicar
+
+on:
+  schedule:
+    - cron: "0 11 * * 1"      # lunes 11:00 UTC = 6:00 a. m. en Colombia
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: actualizar-y-publicar
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Descargar listas oficiales
+        run: python procesamiento/descargar_listas.py
+
+      - name: Extraer documentos de OFAC
+        run: python procesamiento/extraer_documentos_sdn.py
+
+      - name: Convertir lista de la ONU
+        run: python procesamiento/convertir_onu_a_csv.py
+
+      - name: Preparar datos de la página
+        run: python procesamiento/preparar_datos_web.py
+
+      - name: Guardar los datos actualizados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos/listas.json
+          if git diff --staged --quiet; then
+            echo "Las listas no cambiaron."
+          else
+            git commit -m "Actualización automática de listas $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+  publicar:
+    needs: actualizar
+    # Se publica siempre: si la actualización falló, la página sale con las listas anteriores
+    if: always()
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Armar la carpeta de la página
+        run: |
+          mkdir -p _sitio/datos
+          cp index.html motor.js xlsx.full.min.js _sitio/
+          cp datos/listas.json _sitio/datos/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _sitio
+      - id: despliegue
+        uses: actions/deploy-pages@v4
