@@ -7,11 +7,15 @@ archivo liviano con todo lo necesario para el cruce:
   - sdn.csv y alt.csv          -> nombres principales y alias de OFAC
   - sdn_documentos.csv         -> documentos de OFAC (generado por extraer_documentos_sdn.py)
   - lista_onu.csv              -> nombres, alias y documentos de la ONU (generado por convertir_onu_a_csv.py)
+  - lista_ue.csv               -> terroristas de la Unión Europea (generado por convertir_ue.py)
+  - lista_bid.csv              -> sancionados del BID y otros bancos (generado por convertir_bid.py)
 
 Orden para actualizar las listas:
     python descargar_listas.py
     python extraer_documentos_sdn.py
     python convertir_onu_a_csv.py
+    python convertir_ue.py
+    python convertir_bid.py
     python preparar_datos_web.py
 
 Solo usa librerías que ya vienen con Python.
@@ -33,6 +37,8 @@ ARCHIVO_SALIDA = os.path.join("..", "datos", "listas.json")
 # lo normal, probablemente la descarga quedó dañada y no se publica.
 MINIMO_REGISTROS_OFAC = 10_000
 MINIMO_REGISTROS_ONU = 500
+MINIMO_REGISTROS_UE = 10
+MINIMO_REGISTROS_BID = 100
 
 TIPOS_REGISTRO = {
     "individual": "persona natural",
@@ -101,34 +107,45 @@ for fila in leer_punto_y_coma("sdn_documentos.csv"):
         documentos.append([posicion[clave], doc, fila["tipo_documento"], fila["pais_documento"]])
 
 # ------------------------------------------------------------
-# ONU
+# ONU, Unión Europea y BID
+# Las tres listas vienen en el mismo formato (lista_onu.csv, lista_ue.csv,
+# lista_bid.csv), así que se cargan con la misma función.
 # ------------------------------------------------------------
-filas_onu = leer_punto_y_coma("lista_onu.csv")
-fecha_onu = filas_onu[0]["fecha_descarga"] if filas_onu else ""
+def cargar_lista(nombre_archivo):
+    """Agrega una lista en formato lista_*.csv y devuelve (registros agregados, fecha de la lista)."""
+    filas = leer_punto_y_coma(nombre_archivo)
+    antes = len(registros)
+    for fila in filas:
+        clave = (fila["fuente"], fila["id_original"])
+        if fila["tipo_nombre"] == "PRINCIPAL" and clave not in posicion:
+            posicion[clave] = len(registros)
+            registros.append([fila["fuente"], fila["id_original"], fila["nombre"], fila["tipo"],
+                              fila["programa_o_regimen"]])
+            tipos_doc = (fila["tipo_documento"] or "").split(" | ")
+            for i, numero in enumerate((fila["numero_documento"] or "").split(" | ")):
+                doc = limpiar_documento(numero)
+                if doc:
+                    tipo_doc = tipos_doc[i] if i < len(tipos_doc) else ""
+                    documentos.append([posicion[clave], doc, tipo_doc, fila["pais"]])
+    for fila in filas:
+        clave = (fila["fuente"], fila["id_original"])
+        if clave in posicion and fila["nombre"]:
+            nombres.append([posicion[clave], fila["nombre"], fila["tipo_nombre"]])
+    fecha = filas[0]["fecha_descarga"] if filas else ""
+    return len(registros) - antes, fecha
 
-for fila in filas_onu:
-    clave = ("ONU", fila["id_original"])
-    if fila["tipo_nombre"] == "PRINCIPAL" and clave not in posicion:
-        posicion[clave] = len(registros)
-        registros.append(["ONU", fila["id_original"], fila["nombre"], fila["tipo"],
-                          fila["programa_o_regimen"]])
-        for numero in (fila["numero_documento"] or "").split(" | "):
-            doc = limpiar_documento(numero)
-            if doc:
-                documentos.append([posicion[clave], doc, fila["tipo_documento"] or "", fila["pais"]])
 
-for fila in filas_onu:
-    clave = ("ONU", fila["id_original"])
-    if clave in posicion and fila["nombre"]:
-        nombres.append([posicion[clave], fila["nombre"], fila["tipo_nombre"]])
-
-total_onu = len(registros) - total_ofac
+total_onu, fecha_onu = cargar_lista("lista_onu.csv")
+total_ue, fecha_ue = cargar_lista("lista_ue.csv")
+total_bid, fecha_bid = cargar_lista("lista_bid.csv")
 
 # ------------------------------------------------------------
 # Revisión de seguridad y guardado
 # ------------------------------------------------------------
-if total_ofac < MINIMO_REGISTROS_OFAC or total_onu < MINIMO_REGISTROS_ONU:
-    sys.exit(f"ERROR: las listas parecen incompletas (OFAC: {total_ofac}, ONU: {total_onu}). "
+if (total_ofac < MINIMO_REGISTROS_OFAC or total_onu < MINIMO_REGISTROS_ONU
+        or total_ue < MINIMO_REGISTROS_UE or total_bid < MINIMO_REGISTROS_BID):
+    sys.exit(f"ERROR: las listas parecen incompletas (OFAC: {total_ofac}, ONU: {total_onu}, "
+             f"UE: {total_ue}, BID: {total_bid}). "
              "No se actualizó la página.")
 
 hora_colombia = datetime.now(timezone(timedelta(hours=-5)))
@@ -138,6 +155,10 @@ datos = {
         "fecha_lista_onu": fecha_onu,
         "registros_ofac": total_ofac,
         "registros_onu": total_onu,
+        "fecha_lista_ue": fecha_ue,
+        "registros_ue": total_ue,
+        "fecha_lista_bid": fecha_bid,
+        "registros_bid": total_bid,
     },
     "registros": registros,
     "nombres": nombres,
@@ -149,5 +170,5 @@ with open(ARCHIVO_SALIDA, "w", encoding="utf-8") as archivo:
     json.dump(datos, archivo, ensure_ascii=False, separators=(",", ":"))
 
 print(f"Listo. Archivo generado: {ARCHIVO_SALIDA}")
-print(f"  Registros OFAC: {total_ofac:,} | Registros ONU: {total_onu:,}")
+print(f"  Registros OFAC: {total_ofac:,} | ONU: {total_onu:,} | UE: {total_ue:,} | BID: {total_bid:,}")
 print(f"  Nombres (con alias): {len(nombres):,} | Documentos: {len(documentos):,}")
