@@ -1,5 +1,5 @@
 # Tarea automática:
-#   1. Cada lunes a las 6:00 a. m. (hora Colombia) descarga las listas de OFAC y ONU,
+#   1. Cada lunes a las 6:00 a. m. (hora Colombia) descarga las listas de OFAC, ONU, UE y BID,
 #      las procesa con los scripts de la carpeta "procesamiento" y guarda datos/listas.json.
 #   2. Publica la página en GitHub Pages.
 # También se puede correr a mano: pestaña Actions > "Actualizar listas y publicar" > Run workflow.
@@ -42,6 +42,12 @@ jobs:
 
       - name: Convertir lista de la ONU
         run: python procesamiento/convertir_onu_a_csv.py
+
+      - name: Convertir lista de la Unión Europea
+        run: python procesamiento/convertir_ue.py
+
+      - name: Convertir lista del BID
+        run: python procesamiento/convertir_bid.py
 
       - name: Preparar datos de la página
         run: python procesamiento/preparar_datos_web.py
