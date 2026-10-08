@@ -6,9 +6,18 @@
  *   1. Documento igual            -> alerta ALTA
  *   2. Nombre igual (cualquier orden de palabras) -> alerta MEDIA
  *   3. Nombre parecido (>= UMBRAL_SIMILITUD)       -> alerta BAJA
+ *   4. Nombre parcial: todas las palabras de un nombre están dentro del otro
+ *      (ej. "Veronica Alcocer" dentro de "Veronica del Socorro Alcocer Garcia") -> alerta BAJA
  */
 
 var UMBRAL_SIMILITUD = 90;
+
+/* Palabras que no cuentan para la búsqueda parcial: conectores de nombres
+   ("del Socorro", "de la Cruz"), porque casi todos los nombres los tienen. */
+var CONECTORES = new Set(["DE", "DEL", "LA", "LAS", "LOS", "Y", "E", "DA", "DAS", "DO", "DOS", "DI", "DU", "VAN", "VON", "DER", "LE"]);
+
+/* Mínimo de palabras que deben coincidir en la búsqueda parcial (ej. nombre y primer apellido) */
+var MINIMO_PALABRAS_PARCIAL = 2;
 
 var PALABRAS_SOCIEDAD = new Set(["SAS", "SA", "LTDA", "LIMITADA", "LTD", "INC", "LLC", "CIA", "ESP", "EU"]);
 
@@ -20,6 +29,13 @@ function limpiarNombre(nombre) {
   texto = texto.normalize("NFKD").replace(/[\u0300-\u036f]/g, ""); // quita tildes
   texto = texto.replace(/[^A-Za-z0-9 ]/g, " ").toUpperCase();
   return texto.split(/\s+/).filter(function (p) { return p && !PALABRAS_SOCIEDAD.has(p); }).join(" ");
+}
+
+/* Palabras que sí cuentan para la búsqueda parcial: sin conectores, sin letras sueltas y sin repetir */
+function palabrasSignificativas(nombreOrdenado) {
+  return Array.from(new Set(nombreOrdenado.split(" ").filter(function (p) {
+    return p.length >= 2 && !CONECTORES.has(p);
+  })));
 }
 
 function ordenarPalabras(nombreLimpio) {
@@ -65,7 +81,9 @@ function similitud(a, b) {
 function prepararListas(datos) {
   var nombres = datos.nombres.map(function (n) {
     var ordenado = ordenarPalabras(limpiarNombre(n[1]));
-    return { reg: n[0], nombre: n[1], tipoNombre: n[2], ordenado: ordenado };
+    var palabras = palabrasSignificativas(ordenado);
+    return { reg: n[0], nombre: n[1], tipoNombre: n[2], ordenado: ordenado,
+             palabras: palabras, conjunto: new Set(palabras) };
   }).filter(function (n) { return n.ordenado; });
 
   var porNombreExacto = new Map();   // nombre ordenado -> posiciones
@@ -160,6 +178,42 @@ function buscarContratista(listas, documento, nombre) {
         }));
       }
     });
+
+    // 4. Nombre parcial
+    var buscadas = palabrasSignificativas(ordenado);
+    if (buscadas.length >= MINIMO_PALABRAS_PARCIAL) {
+      var conjuntoBuscado = new Set(buscadas);
+      var parciales = new Set();
+      // 4a. Todas las palabras escritas están dentro del nombre de la lista
+      //     ("Veronica Alcocer" dentro de "ALCOCER GARCIA, Veronica del Socorro")
+      var listasPorPalabra = buscadas.map(function (p) { return listas.porPalabra.get("P:" + p) || []; });
+      var masCorta = listasPorPalabra.reduce(function (a, b) { return a.length <= b.length ? a : b; });
+      masCorta.forEach(function (pos) {
+        var n = listas.nombres[pos];
+        if (buscadas.every(function (p) { return n.conjunto.has(p); })) parciales.add(pos);
+      });
+      // 4b. Todas las palabras del nombre de la lista están dentro de lo escrito
+      //     ("MARIN ARANGO, Luciano" dentro de "Luciano Marin Arango Perez")
+      listasPorPalabra.forEach(function (lista) {
+        lista.forEach(function (pos) {
+          var n = listas.nombres[pos];
+          if (n.palabras.length >= MINIMO_PALABRAS_PARCIAL &&
+              n.palabras.every(function (p) { return conjuntoBuscado.has(p); })) parciales.add(pos);
+        });
+      });
+      parciales.forEach(function (pos) {
+        var n = listas.nombres[pos];
+        if (n.ordenado === ordenado) return;                     // ya es exacto
+        var comunes = n.palabras.filter(function (p) { return conjuntoBuscado.has(p); }).length;
+        var total = Math.max(n.palabras.length, buscadas.length);
+        var r = datosRegistro(n.reg);
+        alertas.push(Object.assign(r, {
+          nivel: 3, tipoCoincidencia: "Nombre parcial", similitud: Math.round(100 * comunes / total),
+          palabrasComunes: comunes, palabrasTotal: total,
+          nombreEnLista: n.nombre, tipoNombre: n.tipoNombre, documentoEnLista: "", detalleDocumento: ""
+        }));
+      });
+    }
   }
 
   // Un mismo registro de la lista se reporta una sola vez, con la coincidencia más fuerte

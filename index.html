@@ -126,6 +126,7 @@
   details { margin-top: 2.5rem; font-size: .9rem; color: var(--tinta-suave); }
   summary { cursor: pointer; font-weight: 600; color: var(--tinta); }
   details dl { margin: .75rem 0 0; }
+  details + details { margin-top: 1rem; }
   details dt { font-weight: 600; color: var(--tinta); margin-top: .6rem; }
   details dd { margin: 0; }
   .privacidad { font-size: .85rem; color: var(--tinta-suave); margin-top: 2rem; }
@@ -156,7 +157,7 @@
 </header>
 <main>
   <h2 class="herramienta">Consulta de contratistas en listas restrictivas</h2>
-  <p class="intro">Suba el archivo de Excel con los contratistas, o consulte una sola persona o empresa, y la página le dirá si aparece en la Lista Clinton (OFAC) o en la lista del Consejo de Seguridad de la ONU.</p>
+  <p class="intro">Suba el archivo de Excel con los contratistas, o consulte una sola persona o empresa, y la página le dirá si aparece en alguna de las listas restrictivas: OFAC (Lista Clinton), ONU, Unión Europea y BID.</p>
   <p class="fechas" id="fechas">Cargando las listas…</p>
 
   <!-- Paso único: subir el archivo -->
@@ -222,6 +223,12 @@
   </section>
 
   <details>
+    <summary>¿Qué listas se consultan?</summary>
+    <dl id="detalle-listas"></dl>
+    <p>Las alertas del BID corresponden a inhabilitaciones para contratar por prácticas prohibidas (fraude, corrupción, colusión), no a sanciones financieras. Solo se incluyen las inhabilitaciones vigentes.</p>
+  </details>
+
+  <details>
     <summary>¿Cómo leer los resultados?</summary>
     <dl>
       <dt>Alerta alta</dt>
@@ -229,7 +236,7 @@
       <dt>Alerta media</dt>
       <dd>El nombre es igual a uno de la lista, aunque las palabras estén en otro orden. Hay que confirmar con el documento, el país o la fecha de nacimiento.</dd>
       <dt>Alerta baja</dt>
-      <dd>El nombre es muy parecido a uno de la lista, por ejemplo por un error de digitación. Suele tratarse de otra persona, pero conviene revisarlo.</dd>
+      <dd>El nombre es muy parecido a uno de la lista, por ejemplo por un error de digitación, o coincide en parte: todas las palabras de uno están dentro del otro, como "Verónica Alcocer" dentro de "Verónica del Socorro Alcocer García". Suele tratarse de otra persona, pero conviene revisarlo.</dd>
     </dl>
     <p>Una coincidencia no significa que el contratista esté sancionado: puede ser un homónimo. Cada caso debe verificarse antes de tomar decisiones.</p>
   </details>
@@ -270,8 +277,17 @@
     .then(function (datos) {
       listas = prepararListas(datos);
       var m = datos.meta;
-      $("fechas").textContent = "Listas actualizadas el " + fechaLarga(m.fecha_actualizacion) +
-        ". Versión de la lista de la ONU: " + fechaLarga(m.fecha_lista_onu) + ".";
+      $("fechas").textContent = "Listas actualizadas el " + fechaLarga(m.fecha_actualizacion) + ".";
+      // Detalle de cada lista en la sección "¿Qué listas se consultan?"
+      var detalle = [
+        ["OFAC (Lista Clinton)", "Personas y entidades sancionadas por la Oficina de Control de Activos Extranjeros de EE. UU., incluidas sus designaciones de terroristas.", m.registros_ofac, m.fecha_actualizacion],
+        ["ONU", "Lista Consolidada del Consejo de Seguridad de las Naciones Unidas.", m.registros_onu, m.fecha_lista_onu],
+        ["Unión Europea", "Personas y organizaciones catalogadas como terroristas por la UE.", m.registros_ue, m.fecha_lista_ue],
+        ["BID", "Firmas y personas inhabilitadas por fraude o corrupción por el BID, incluidas las inhabilitaciones cruzadas del Banco Mundial y otros bancos multilaterales.", m.registros_bid, m.fecha_lista_bid]
+      ].filter(function (l) { return l[2]; });
+      $("detalle-listas").innerHTML = detalle.map(function (l) {
+        return "<dt>" + l[0] + "</dt><dd>" + l[1] + " " + formatoNumero(l[2]) + " registros, versión del " + fechaLarga(l[3]) + ".</dd>";
+      }).join("");
       $("zona").classList.remove("desactivada");
       $("archivo").disabled = false;
       ["ind-documento", "ind-nombre", "btn-consultar"].forEach(function (id) { $(id).disabled = false; });
@@ -421,7 +437,7 @@
       v.className = "veredicto limpio";
       $("veredicto-titulo").textContent = "No aparece en las listas";
       $("veredicto-texto").textContent = "La consulta de " + consultado +
-        " no tiene coincidencias en la Lista Clinton (OFAC) ni en la lista de la ONU.";
+        " no tiene coincidencias en ninguna de las listas consultadas.";
       $("conteos").innerHTML = "";
       $("contenedor-tabla").innerHTML = "";
     } else if (individual) {
@@ -432,13 +448,13 @@
       $("conteos").innerHTML =
         "<li><strong>" + porNivel[1] + "</strong> alerta" + (porNivel[1] === 1 ? "" : "s") + " alta" + (porNivel[1] === 1 ? "" : "s") + " (documento)</li>" +
         "<li><strong>" + porNivel[2] + "</strong> media" + (porNivel[2] === 1 ? "" : "s") + " (nombre igual)</li>" +
-        "<li><strong>" + porNivel[3] + "</strong> baja" + (porNivel[3] === 1 ? "" : "s") + " (nombre parecido)</li>";
+        "<li><strong>" + porNivel[3] + "</strong> baja" + (porNivel[3] === 1 ? "" : "s") + " (nombre parecido o parcial)</li>";
       $("contenedor-tabla").innerHTML = construirTabla(alertas);
     } else if (!alertas.length) {
       v.className = "veredicto limpio";
       $("veredicto-titulo").textContent = "No se encontraron coincidencias";
       $("veredicto-texto").textContent = "Se revisaron " + formatoNumero(revisados) +
-        " contratistas y ninguno aparece en la Lista Clinton (OFAC) ni en la lista de la ONU.";
+        " contratistas y ninguno aparece en las listas consultadas.";
       $("conteos").innerHTML = "";
       $("contenedor-tabla").innerHTML = "";
     } else {
@@ -451,7 +467,7 @@
       $("conteos").innerHTML =
         "<li><strong>" + porNivel[1] + "</strong> alerta" + (porNivel[1] === 1 ? "" : "s") + " alta" + (porNivel[1] === 1 ? "" : "s") + " (documento)</li>" +
         "<li><strong>" + porNivel[2] + "</strong> media" + (porNivel[2] === 1 ? "" : "s") + " (nombre igual)</li>" +
-        "<li><strong>" + porNivel[3] + "</strong> baja" + (porNivel[3] === 1 ? "" : "s") + " (nombre parecido)</li>";
+        "<li><strong>" + porNivel[3] + "</strong> baja" + (porNivel[3] === 1 ? "" : "s") + " (nombre parecido o parcial)</li>";
       $("contenedor-tabla").innerHTML = construirTabla(alertas);
     }
     if (individual) {
@@ -468,17 +484,19 @@
   }
 
   var NOMBRES_NIVEL = ["", "Alta", "Media", "Baja"];
+  var NOMBRES_LISTA = { OFAC: "OFAC (Lista Clinton)", ONU: "ONU", UE: "Unión Europea", BID: "BID (inhabilitados)" };
   function construirTabla(alertas) {
     var filas = alertas.map(function (a) {
       var motivo = a.tipoCoincidencia === "Documento"
         ? "Mismo documento" + (a.detalleDocumento ? "<small>" + escapar(a.detalleDocumento) + "</small>" : "")
         : a.tipoCoincidencia === "Nombre exacto" ? "Mismo nombre"
+        : a.tipoCoincidencia === "Nombre parcial" ? "Nombre parcial<small>coinciden " + a.palabrasComunes + " de " + a.palabrasTotal + " palabras</small>"
         : "Nombre parecido<small>" + String(a.similitud).replace(".", ",") + " % de similitud</small>";
       return "<tr>" +
         '<td><span class="nivel nivel-' + a.nivel + '">' + NOMBRES_NIVEL[a.nivel] + "</span></td>" +
         "<td>" + escapar(a.nombre) + "<small>" + (a.documento ? "Doc. " + escapar(a.documento) : "Sin documento") + (archivoActual.individual ? "" : ", fila " + a.fila) + "</small></td>" +
         "<td>" + escapar(a.nombreEnLista) + (a.tipoNombre && a.tipoNombre !== "PRINCIPAL" ? "<small>" + escapar(a.tipoNombre.toLowerCase()) + "</small>" : "") + "</td>" +
-        "<td>" + (a.fuente === "OFAC" ? "OFAC (Lista Clinton)" : "ONU") + "<small>" + escapar(a.programa) + "</small></td>" +
+        "<td>" + (NOMBRES_LISTA[a.fuente] || a.fuente) + "<small>" + escapar(a.programa) + "</small></td>" +
         "<td>" + motivo + "<small>" + escapar(a.tipoRegistro) + "</small></td>" +
         "</tr>";
     }).join("");
@@ -501,6 +519,8 @@
       ["Alertas bajas (nombre parecido)", r.porNivel[3]],
       ["Listas actualizadas el", listas.meta.fecha_actualizacion],
       ["Versión de la lista ONU", listas.meta.fecha_lista_onu],
+      ["Versión de la lista de la Unión Europea", listas.meta.fecha_lista_ue || "no incluida"],
+      ["Versión de la lista del BID", listas.meta.fecha_lista_bid || "no incluida"],
       ["Umbral de similitud de nombres", UMBRAL_SIMILITUD]
     ];
     var encabezado = archivoActual.encabezado.concat(["nivel_alerta", "tipo_coincidencia", "similitud", "fuente",
