@@ -98,12 +98,16 @@ function prepararListas(datos) {
   });
 
   var porDocumento = new Map();
+  var documentosPorRegistro = new Map();   // registro de la lista -> sus documentos
   datos.documentos.forEach(function (d) {
     if (!porDocumento.has(d[1])) porDocumento.set(d[1], []);
     porDocumento.get(d[1]).push(d);
+    if (!documentosPorRegistro.has(d[0])) documentosPorRegistro.set(d[0], []);
+    documentosPorRegistro.get(d[0]).push(d);
   });
 
   return { meta: datos.meta, registros: datos.registros, nombres: nombres,
+           documentosPorRegistro: documentosPorRegistro,
            porNombreExacto: porNombreExacto, porPalabra: porPalabra, porDocumento: porDocumento };
 }
 
@@ -131,7 +135,13 @@ function buscarContratista(listas, documento, nombre) {
 
   function datosRegistro(pos) {
     var r = listas.registros[pos];
-    return { fuente: r[0], idLista: r[1], nombrePrincipal: r[2], tipoRegistro: r[3], programa: r[4] };
+    // Documentos que la lista tiene registrados para esa persona o empresa,
+    // para compararlos con el documento del contratista
+    var docs = (listas.documentosPorRegistro.get(pos) || []).map(function (d) {
+      return { numero: d[1], detalle: (d[2] + " " + d[3]).trim() };
+    });
+    return { fuente: r[0], idLista: r[1], nombrePrincipal: r[2], tipoRegistro: r[3], programa: r[4],
+             documentosLista: docs };
   }
 
   // 1. Documento

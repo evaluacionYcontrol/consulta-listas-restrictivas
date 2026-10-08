@@ -280,7 +280,7 @@
       $("fechas").textContent = "Listas actualizadas el " + fechaLarga(m.fecha_actualizacion) + ".";
       // Detalle de cada lista en la sección "¿Qué listas se consultan?"
       var detalle = [
-        ["OFAC (Lista Clinton)", "Personas y entidades sancionadas por la Oficina de Control de Activos Extranjeros de EE. UU., incluidas sus designaciones de terroristas.", m.registros_ofac, m.fecha_actualizacion],
+        ["OFAC", "Personas y entidades sancionadas por la Oficina de Control de Activos Extranjeros de EE. UU., incluidas sus designaciones de terroristas.", m.registros_ofac, m.fecha_actualizacion],
         ["ONU", "Lista Consolidada del Consejo de Seguridad de las Naciones Unidas.", m.registros_onu, m.fecha_lista_onu],
         ["Unión Europea", "Personas y organizaciones catalogadas como terroristas por la UE.", m.registros_ue, m.fecha_lista_ue],
         ["BID", "Firmas y personas inhabilitadas por fraude o corrupción por el BID, incluidas las inhabilitaciones cruzadas del Banco Mundial y otros bancos multilaterales.", m.registros_bid, m.fecha_lista_bid]
@@ -484,7 +484,7 @@
   }
 
   var NOMBRES_NIVEL = ["", "Alta", "Media", "Baja"];
-  var NOMBRES_LISTA = { OFAC: "OFAC (Lista Clinton)", ONU: "ONU", UE: "Unión Europea", BID: "BID (inhabilitados)" };
+  var NOMBRES_LISTA = { OFAC: "OFAC", ONU: "ONU", UE: "Unión Europea", BID: "BID (inhabilitados)" };
   function construirTabla(alertas) {
     var filas = alertas.map(function (a) {
       var motivo = a.tipoCoincidencia === "Documento"
@@ -492,6 +492,14 @@
         : a.tipoCoincidencia === "Nombre exacto" ? "Mismo nombre"
         : a.tipoCoincidencia === "Nombre parcial" ? "Nombre parcial<small>coinciden " + a.palabrasComunes + " de " + a.palabrasTotal + " palabras</small>"
         : "Nombre parecido<small>" + String(a.similitud).replace(".", ",") + " % de similitud</small>";
+      if (a.tipoCoincidencia !== "Documento") {
+        var docs = a.documentosLista || [];
+        motivo += docs.length
+          ? "<small><strong>Doc. en la lista:</strong> " + docs.slice(0, 3).map(function (d) {
+              return escapar(d.numero) + (d.detalle ? " (" + escapar(d.detalle) + ")" : "");
+            }).join(", ") + (docs.length > 3 ? " y " + (docs.length - 3) + " más" : "") + "</small>"
+          : "<small>La lista no registra documento</small>";
+      }
       return "<tr>" +
         '<td><span class="nivel nivel-' + a.nivel + '">' + NOMBRES_NIVEL[a.nivel] + "</span></td>" +
         "<td>" + escapar(a.nombre) + "<small>" + (a.documento ? "Doc. " + escapar(a.documento) : "Sin documento") + (archivoActual.individual ? "" : ", fila " + a.fila) + "</small></td>" +
@@ -530,7 +538,9 @@
     r.alertas.forEach(function (a) {
       var original = archivoActual.encabezado.map(function (_, j) { return textoCelda(a.filaOriginal[j]); });
       detalle.push(original.concat([a.nivel + " - " + NOMBRES_NIVEL[a.nivel].toUpperCase(), a.tipoCoincidencia, a.similitud,
-        a.fuente, a.idLista, a.nombreEnLista, a.tipoNombre, a.tipoRegistro, a.programa, a.documentoEnLista, a.detalleDocumento]));
+        a.fuente, a.idLista, a.nombreEnLista, a.tipoNombre, a.tipoRegistro, a.programa,
+        a.documentoEnLista || (a.documentosLista || []).map(function (d) { return d.numero; }).join(" | "),
+        a.detalleDocumento || (a.documentosLista || []).map(function (d) { return d.detalle; }).join(" | ")]));
     });
     var libro = XLSX.utils.book_new();
     var hojaResumen = XLSX.utils.aoa_to_sheet(resumen);
