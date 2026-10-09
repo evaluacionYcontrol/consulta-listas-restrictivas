@@ -17,9 +17,10 @@ El resultado se ve en pantalla y se puede descargar en Excel como soporte de la 
 | OFAC | Lista SDN de la Oficina de Control de Activos Extranjeros de EE. UU., con alias. Incluye las designaciones de terroristas de EE. UU. | sanctionslistservice.ofac.treas.gov |
 | ONU | Lista Consolidada del Consejo de Seguridad de las Naciones Unidas. | scsanctions.un.org |
 | Unión Europea | Personas y organizaciones catalogadas como terroristas por la UE (Posición Común 2001/931/PESC y régimen ISIL/Al-Qaida). | data.europa.eu, lista consolidada de sanciones financieras |
-| BID | Firmas y personas inhabilitadas por prácticas prohibidas (fraude, corrupción, colusión). Incluye las inhabilitaciones cruzadas del Banco Mundial y otros bancos multilaterales. Solo se incluyen las vigentes. | data.iadb.org |
+| BID | Firmas y personas inhabilitadas por prácticas prohibidas (fraude, corrupción, colusión). Incluye inhabilitaciones cruzadas de otros bancos multilaterales. Solo se incluyen las vigentes. | data.iadb.org |
+| Banco Mundial | Firmas y personas inhabilitadas para contratos financiados por el Banco Mundial, con nombres alternos y números de registro mercantil. Solo se incluyen las vigentes. | worldbank.org/en/projects-operations/procurement/debarred-firms (exportación a Excel) |
 
-Las listas se actualizan automáticamente cada lunes. La fecha de actualización aparece en la parte de arriba de la página y en el Excel descargado.
+Las listas se actualizan automáticamente cada lunes, excepto la del Banco Mundial, que se actualiza a mano (ver "Actualización de la lista del Banco Mundial"). La fecha de actualización aparece en la parte de arriba de la página y en el Excel descargado.
 
 ## Protección de los datos
 
@@ -53,23 +54,37 @@ La página reconoce sola las columnas de documento y nombre buscando encabezados
 | `index.html` | La página que ven los usuarios (diseño, textos, foto y logo). |
 | `motor.js` | La lógica de búsqueda. |
 | `xlsx.full.min.js` | Librería SheetJS para leer y escribir archivos de Excel en el navegador. |
-| `datos/listas.json` | Las cuatro listas ya procesadas. Se regenera automáticamente. |
+| `datos/listas.json` | Las cinco listas ya procesadas. Se regenera automáticamente. |
 | `procesamiento/descargar_listas.py` | Descarga las listas desde las fuentes oficiales. |
 | `procesamiento/extraer_documentos_sdn.py` | Extrae los documentos de identidad de la lista OFAC. |
 | `procesamiento/convertir_onu_a_csv.py` | Convierte la lista de la ONU (XML) a CSV. |
 | `procesamiento/convertir_ue.py` | Extrae la lista de terroristas de la Unión Europea. |
 | `procesamiento/convertir_bid.py` | Convierte la lista del BID y deja solo las inhabilitaciones vigentes. |
-| `procesamiento/preparar_datos_web.py` | Une las cuatro listas en `datos/listas.json`. |
+| `procesamiento/convertir_banco_mundial.py` | Convierte la lista del Banco Mundial y deja solo las inhabilitaciones vigentes. |
+| `procesamiento/bm_fuente.xlsx` | Última lista del Banco Mundial descargada a mano. |
+| `procesamiento/preparar_datos_web.py` | Une las cinco listas en `datos/listas.json`. |
 | `.github/workflows/actualizar_y_publicar.yml` | La tarea automática que actualiza las listas y publica la página. |
 
 ## Actualización automática
 
-Cada lunes a las 6:00 a. m. (hora Colombia), GitHub Actions ejecuta en orden: `descargar_listas.py`, `extraer_documentos_sdn.py`, `convertir_onu_a_csv.py`, `convertir_ue.py`, `convertir_bid.py` y `preparar_datos_web.py`, y publica la página.
+Cada lunes a las 6:00 a. m. (hora Colombia), GitHub Actions ejecuta en orden: `descargar_listas.py`, `extraer_documentos_sdn.py`, `convertir_onu_a_csv.py`, `convertir_ue.py`, `convertir_bid.py`, `convertir_banco_mundial.py` y `preparar_datos_web.py`, y publica la página.
 
 - **Actualizar a mano:** pestaña **Actions > Actualizar listas y publicar > Run workflow**.
 - **Si falla una descarga,** no se actualiza ninguna lista y la página sigue funcionando con las anteriores. GitHub envía un correo avisando; basta con volver a correr la tarea más tarde.
 - **Si alguna lista llega incompleta** (muchos menos registros de lo normal), tampoco se publica.
 - **Si GitHub pausa la tarea programada** por inactividad del repositorio, aparece un aviso en la pestaña Actions con un botón para reactivarla.
+
+## Actualización de la lista del Banco Mundial
+
+El Banco Mundial no publica su lista con una dirección de descarga fija, así que se actualiza a mano (se recomienda una vez al mes):
+
+1. Entrar a https://www.worldbank.org/en/projects-operations/procurement/debarred-firms
+2. En la tabla "Debarred Firms and Individuals", usar la opción de exportar a Excel.
+3. Renombrar el archivo descargado como `bm_fuente.xlsx`.
+4. En el repositorio, entrar a la carpeta `procesamiento`, subir el archivo con **Add file > Upload files** y pulsar **Commit changes**.
+5. En la pestaña **Actions**, lanzar **Actualizar listas y publicar > Run workflow**.
+
+La fecha de la versión usada aparece en la sección "¿Qué listas se consultan?" de la página.
 
 ## Ajustes frecuentes
 

@@ -19,7 +19,8 @@ var CONECTORES = new Set(["DE", "DEL", "LA", "LAS", "LOS", "Y", "E", "DA", "DAS"
 /* Mínimo de palabras que deben coincidir en la búsqueda parcial (ej. nombre y primer apellido) */
 var MINIMO_PALABRAS_PARCIAL = 2;
 
-var PALABRAS_SOCIEDAD = new Set(["SAS", "SA", "LTDA", "LIMITADA", "LTD", "INC", "LLC", "CIA", "ESP", "EU"]);
+var PALABRAS_SOCIEDAD = new Set(["SAS", "SA", "LTDA", "LIMITADA", "LTD", "LIMITED", "INC", "LLC", "LLP", "PLC", "CIA", "ESP", "EU",
+                                     "SRL", "SL", "SAC", "EIRL", "GMBH", "SPA", "PTY"]);
 
 /* ---------- Limpieza (igual que en Python) ---------- */
 

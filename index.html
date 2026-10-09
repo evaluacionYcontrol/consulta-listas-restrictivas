@@ -157,7 +157,7 @@
 </header>
 <main>
   <h2 class="herramienta">Consulta de contratistas en listas restrictivas</h2>
-  <p class="intro">Suba el archivo de Excel con los contratistas, o consulte una sola persona o empresa, y la página le dirá si aparece en alguna de las listas restrictivas: OFAC, ONU, Unión Europea y BID.</p>
+  <p class="intro">Suba el archivo de Excel con los contratistas, o consulte una sola persona o empresa, y la página le dirá si aparece en alguna de las listas restrictivas: OFAC, ONU, Unión Europea, BID y Banco Mundial.</p>
   <p class="fechas" id="fechas">Cargando las listas…</p>
 
   <!-- Paso único: subir el archivo -->
@@ -225,7 +225,7 @@
   <details>
     <summary>¿Qué listas se consultan?</summary>
     <dl id="detalle-listas"></dl>
-    <p>Las alertas del BID corresponden a inhabilitaciones para contratar por prácticas prohibidas (fraude, corrupción, colusión), no a sanciones financieras. Solo se incluyen las inhabilitaciones vigentes.</p>
+    <p>Las alertas del BID y del Banco Mundial corresponden a inhabilitaciones para contratar por prácticas prohibidas (fraude, corrupción, colusión), no a sanciones financieras. Solo se incluyen las inhabilitaciones vigentes.</p>
   </details>
 
   <details>
@@ -283,7 +283,8 @@
         ["OFAC", "Personas y entidades sancionadas por la Oficina de Control de Activos Extranjeros de EE. UU., incluidas sus designaciones de terroristas.", m.registros_ofac, m.fecha_actualizacion],
         ["ONU", "Lista Consolidada del Consejo de Seguridad de las Naciones Unidas.", m.registros_onu, m.fecha_lista_onu],
         ["Unión Europea", "Personas y organizaciones catalogadas como terroristas por la UE.", m.registros_ue, m.fecha_lista_ue],
-        ["BID", "Firmas y personas inhabilitadas por fraude o corrupción por el BID, incluidas las inhabilitaciones cruzadas del Banco Mundial y otros bancos multilaterales.", m.registros_bid, m.fecha_lista_bid]
+        ["BID", "Firmas y personas inhabilitadas por fraude o corrupción por el BID, incluidas las inhabilitaciones cruzadas de otros bancos multilaterales.", m.registros_bid, m.fecha_lista_bid],
+        ["Banco Mundial", "Firmas y personas inhabilitadas para contratos financiados por el Banco Mundial, incluidas las inhabilitaciones cruzadas de otros bancos multilaterales.", m.registros_bm, m.fecha_lista_bm]
       ].filter(function (l) { return l[2]; });
       $("detalle-listas").innerHTML = detalle.map(function (l) {
         return "<dt>" + l[0] + "</dt><dd>" + l[1] + " " + formatoNumero(l[2]) + " registros, versión del " + fechaLarga(l[3]) + ".</dd>";
@@ -484,7 +485,7 @@
   }
 
   var NOMBRES_NIVEL = ["", "Alta", "Media", "Baja"];
-  var NOMBRES_LISTA = { OFAC: "OFAC", ONU: "ONU", UE: "Unión Europea", BID: "BID (inhabilitados)" };
+  var NOMBRES_LISTA = { OFAC: "OFAC", ONU: "ONU", UE: "Unión Europea", BID: "BID (inhabilitados)", BM: "Banco Mundial (inhabilitados)" };
   function construirTabla(alertas) {
     var filas = alertas.map(function (a) {
       var motivo = a.tipoCoincidencia === "Documento"
@@ -529,6 +530,7 @@
       ["Versión de la lista ONU", listas.meta.fecha_lista_onu],
       ["Versión de la lista de la Unión Europea", listas.meta.fecha_lista_ue || "no incluida"],
       ["Versión de la lista del BID", listas.meta.fecha_lista_bid || "no incluida"],
+      ["Versión de la lista del Banco Mundial", listas.meta.fecha_lista_bm || "no incluida"],
       ["Umbral de similitud de nombres", UMBRAL_SIMILITUD]
     ];
     var encabezado = archivoActual.encabezado.concat(["nivel_alerta", "tipo_coincidencia", "similitud", "fuente",
