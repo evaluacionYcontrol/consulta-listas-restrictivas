@@ -9,6 +9,7 @@ archivo liviano con todo lo necesario para el cruce:
   - lista_onu.csv              -> nombres, alias y documentos de la ONU (generado por convertir_onu_a_csv.py)
   - lista_ue.csv               -> terroristas de la Unión Europea (generado por convertir_ue.py)
   - lista_bid.csv              -> sancionados del BID y otros bancos (generado por convertir_bid.py)
+  - lista_bm.csv               -> inhabilitados del Banco Mundial (generado por convertir_banco_mundial.py)
 
 Orden para actualizar las listas:
     python descargar_listas.py
@@ -16,6 +17,7 @@ Orden para actualizar las listas:
     python convertir_onu_a_csv.py
     python convertir_ue.py
     python convertir_bid.py
+    python convertir_banco_mundial.py
     python preparar_datos_web.py
 
 Solo usa librerías que ya vienen con Python.
@@ -39,6 +41,7 @@ MINIMO_REGISTROS_OFAC = 10_000
 MINIMO_REGISTROS_ONU = 500
 MINIMO_REGISTROS_UE = 10
 MINIMO_REGISTROS_BID = 100
+MINIMO_REGISTROS_BM = 300
 
 TIPOS_REGISTRO = {
     "individual": "persona natural",
@@ -107,9 +110,9 @@ for fila in leer_punto_y_coma("sdn_documentos.csv"):
         documentos.append([posicion[clave], doc, fila["tipo_documento"], fila["pais_documento"]])
 
 # ------------------------------------------------------------
-# ONU, Unión Europea y BID
-# Las tres listas vienen en el mismo formato (lista_onu.csv, lista_ue.csv,
-# lista_bid.csv), así que se cargan con la misma función.
+# ONU, Unión Europea, BID y Banco Mundial
+# Estas listas vienen en el mismo formato (lista_onu.csv, lista_ue.csv,
+# lista_bid.csv, lista_bm.csv), así que se cargan con la misma función.
 # ------------------------------------------------------------
 def cargar_lista(nombre_archivo):
     """Agrega una lista en formato lista_*.csv y devuelve (registros agregados, fecha de la lista)."""
@@ -138,14 +141,16 @@ def cargar_lista(nombre_archivo):
 total_onu, fecha_onu = cargar_lista("lista_onu.csv")
 total_ue, fecha_ue = cargar_lista("lista_ue.csv")
 total_bid, fecha_bid = cargar_lista("lista_bid.csv")
+total_bm, fecha_bm = cargar_lista("lista_bm.csv")
 
 # ------------------------------------------------------------
 # Revisión de seguridad y guardado
 # ------------------------------------------------------------
 if (total_ofac < MINIMO_REGISTROS_OFAC or total_onu < MINIMO_REGISTROS_ONU
-        or total_ue < MINIMO_REGISTROS_UE or total_bid < MINIMO_REGISTROS_BID):
+        or total_ue < MINIMO_REGISTROS_UE or total_bid < MINIMO_REGISTROS_BID
+        or total_bm < MINIMO_REGISTROS_BM):
     sys.exit(f"ERROR: las listas parecen incompletas (OFAC: {total_ofac}, ONU: {total_onu}, "
-             f"UE: {total_ue}, BID: {total_bid}). "
+             f"UE: {total_ue}, BID: {total_bid}, Banco Mundial: {total_bm}). "
              "No se actualizó la página.")
 
 hora_colombia = datetime.now(timezone(timedelta(hours=-5)))
@@ -159,6 +164,8 @@ datos = {
         "registros_ue": total_ue,
         "fecha_lista_bid": fecha_bid,
         "registros_bid": total_bid,
+        "fecha_lista_bm": fecha_bm,
+        "registros_bm": total_bm,
     },
     "registros": registros,
     "nombres": nombres,
@@ -170,5 +177,5 @@ with open(ARCHIVO_SALIDA, "w", encoding="utf-8") as archivo:
     json.dump(datos, archivo, ensure_ascii=False, separators=(",", ":"))
 
 print(f"Listo. Archivo generado: {ARCHIVO_SALIDA}")
-print(f"  Registros OFAC: {total_ofac:,} | ONU: {total_onu:,} | UE: {total_ue:,} | BID: {total_bid:,}")
+print(f"  Registros OFAC: {total_ofac:,} | ONU: {total_onu:,} | UE: {total_ue:,} | BID: {total_bid:,} | Banco Mundial: {total_bm:,}")
 print(f"  Nombres (con alias): {len(nombres):,} | Documentos: {len(documentos):,}")
