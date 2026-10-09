@@ -28,9 +28,9 @@ jobs:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -48,6 +48,11 @@ jobs:
 
       - name: Convertir lista del BID
         run: python procesamiento/convertir_bid.py
+
+      # La lista del Banco Mundial no se descarga sola: se toma el archivo
+      # procesamiento/bm_fuente.xlsx, que se reemplaza a mano (ver convertir_banco_mundial.py)
+      - name: Convertir lista del Banco Mundial
+        run: python procesamiento/convertir_banco_mundial.py
 
       - name: Preparar datos de la página
         run: python procesamiento/preparar_datos_web.py
@@ -73,7 +78,7 @@ jobs:
       name: github-pages
       url: ${{ steps.despliegue.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
 
@@ -83,9 +88,9 @@ jobs:
           cp index.html motor.js xlsx.full.min.js _sitio/
           cp datos/listas.json _sitio/datos/
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _sitio
       - id: despliegue
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
